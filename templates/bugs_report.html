@@ -1,0 +1,339 @@
+{% extends "base.html" %}
+{% block title %}Bug Report{% endblock %}
+{% block page_title %}Bug Report{% endblock %}
+
+{% block extra_style %}
+<style>
+  #loading-overlay {
+    position: fixed; inset: 0; z-index: 9999;
+    background: rgba(255,255,255,0.85); 
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 16px;
+  }
+  .loading-bar-track {
+    width: 280px; height: 4px;
+    background: #E5E7EB; border-radius: 2px; overflow: hidden;
+  }
+  .loading-bar-fill {
+    height: 100%; width: 0%;
+    background: #2563EB; border-radius: 2px;
+    animation: loadprogress 8s ease-out forwards;
+  }
+  @keyframes loadprogress {
+    0%   { width: 0%; }
+    30%  { width: 40%; }
+    60%  { width: 70%; }
+    85%  { width: 88%; }
+    100% { width: 95%; }
+  }
+  .loading-text {
+    font-size: 13px; color: #6B7280;
+    animation: blink 1.4s ease-in-out infinite;
+  }
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.4; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+
+{# Loading overlay — hilang otomatis setelah halaman siap #}
+<div id="loading-overlay">
+  <div style="display:flex; align-items:center; gap:10px;">
+    <div style="width:36px; height:36px; background:#DBEAFE; border-radius:9px;
+                display:flex; align-items:center; justify-content:center;">
+      <i class="ti ti-bug" style="font-size:20px; color:#2563EB;"></i>
+    </div>
+    <div>
+      <div style="font-size:14px; font-weight:600; color:#111827;">Mengambil data bug...</div>
+      <div style="font-size:11px; color:#9CA3AF;">Mengakses Jira API</div>
+    </div>
+  </div>
+  <div class="loading-bar-track">
+    <div class="loading-bar-fill"></div>
+  </div>
+  <div class="loading-text">Mohon tunggu sebentar</div>
+</div>
+
+{# Semua konten halaman dibungkus div ini #}
+<div id="page-content" style="display:none;">
+  {# ── Toggle MTC / NON-MTC ── #}
+  <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:20px;">
+    <div style="display:flex; gap:6px; background:#F3F4F6; padding:4px; border-radius:10px;">
+      <a href="?menu=NON-MTC"
+        style="padding:6px 18px; border-radius:8px; font-size:13px; font-weight:500; text-decoration:none; {{ 'background:white; color:#111827; box-shadow:0 1px 3px rgba(0,0,0,0.1)' if menu == 'NON-MTC' else 'color:#6B7280' }}">
+        Subtask Bug
+      </a>
+      <a href="?menu=MTC"
+        style="padding:6px 18px; border-radius:8px; font-size:13px; font-weight:500; text-decoration:none; {{ 'background:white; color:#111827; box-shadow:0 1px 3px rgba(0,0,0,0.1)' if menu == 'MTC' else 'color:#6B7280' }}">
+        Subtask MTC [BUG]
+      </a>
+    </div>
+    <span style="font-size:12px; color:#9CA3AF;">
+      Data sejak awal tahun · {{ summary.total }} issues
+    </span>
+  </div>
+
+  {# ── Stat cards ── #}
+  <div class="row g-3 mb-4">
+    <div class="col-md-3">
+      <div class="stat-card">
+        <div class="stat-label">Total Bugs</div>
+        <div class="stat-value" style="color:#991B1B">{{ summary.total }}</div>
+        <span class="stat-badge badge-down"><i class="ti ti-bug" style="font-size:12px"></i> Sejak awal tahun</span>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="stat-card">
+        <div class="stat-label">Total Project</div>
+        <div class="stat-value" style="color:#1D4ED8">{{ summary.by_project | length }}</div>
+        <span class="stat-badge badge-neutral"><i class="ti ti-folder" style="font-size:12px"></i> Terdampak</span>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="stat-card">
+        <div class="stat-label">Total Reporter</div>
+        <div class="stat-value" style="color:#065F46">{{ summary.by_reporter | length }}</div>
+        <span class="stat-badge badge-neutral"><i class="ti ti-users" style="font-size:12px"></i> Unik</span>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="stat-card">
+        <div class="stat-label">Bulan Terbanyak</div>
+        
+      </div>
+    </div>
+  </div>
+
+  {# ── Charts row ── #}
+  <div class="row g-3 mb-4">
+
+    {# Trend per bulan #}
+    <div class="col-md-7">
+      <div class="card-box" style="height:100%">
+        <div class="card-box-title">Tren Bug per Bulan</div>
+        <canvas id="trendChart" height="140"></canvas>
+      </div>
+    </div>
+
+    {# By Status donut #}
+    <div class="col-md-5">
+      <div class="card-box" style="height:100%">
+        <div class="card-box-title">Distribusi Status</div>
+        <canvas id="statusChart" height="140"></canvas>
+      </div>
+    </div>
+
+  </div>
+
+  {# ── Bottom row ── #}
+  <div class="row g-3 mb-4">
+
+    {# By Project bar #}
+    <div class="col-md-6">
+      <div class="card-box">
+        <div class="card-box-title">Bug per Project</div>
+        {% set max_proj = summary.by_project.values() | max if summary.by_project else 1 %}
+        {% for proj, cnt in summary.by_project.items() %}
+        {% set pct = ((cnt / max_proj) * 100) | int %}
+        <div class="bar-row">
+          <span class="bar-label-text" style="width:110px; font-size:11px;">{{ proj[:18] }}{% if proj|length > 18 %}…{% endif %}</span>
+          <div class="bar-track">
+            <div class="bar-fill" style="width:{{ pct }}%; background:#DC2626;"></div>
+          </div>
+          <span class="bar-count">{{ cnt }}</span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    {# By Reporter bar #}
+    <div class="col-md-6">
+      <div class="card-box">
+        <div class="card-box-title">Bug per Reporter</div>
+        {% set max_rep = summary.by_reporter.values() | max if summary.by_reporter else 1 %}
+        {% for rep, cnt in summary.by_reporter.items() %}
+        {% set pct = ((cnt / max_rep) * 100) | int %}
+        <div class="bar-row">
+          <span class="bar-label-text" style="width:110px; font-size:11px;">{{ rep.split()[0] }} {{ rep.split()[-1] if rep.split()|length > 1 else '' }}</span>
+          <div class="bar-track">
+            <div class="bar-fill" style="width:{{ pct }}%; background:#2563EB;"></div>
+          </div>
+          <span class="bar-count">{{ cnt }}</span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+  </div>
+
+  {# ── Detail table ── #}
+  <div class="card-box">
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
+      <div class="card-box-title" style="margin-bottom:0;">Detail Bug</div>
+      <span style="font-size:12px; color:#6B7280;">{{ bugs | length }} records</span>
+    </div>
+    <table class="jira-table" id="bugTable">
+      <div style="display:flex; gap:10px; margin-bottom:14px; flex-wrap:wrap;">
+        <input 
+          type="text" 
+          id="filterText"
+          placeholder="Cari MTC No, nama, project, reporter..."
+          style="flex:1; min-width:200px; padding:7px 12px; border:1px solid #E5E7EB; 
+                border-radius:8px; font-size:13px; outline:none; color:#111827;"
+          oninput="filterTable()"
+        >
+        <select id="filterStatus" onchange="filterTable()"
+          style="padding:7px 12px; border:1px solid #E5E7EB; border-radius:8px; 
+                font-size:13px; color:#374151; background:white; outline:none;">
+          <option value="">Semua Status</option>
+          {% for status in summary.by_status.keys() %}
+          <option value="{{ status }}">{{ status }}</option>
+          {% endfor %}
+        </select>
+        <select id="filterProject" onchange="filterTable()"
+          style="padding:7px 12px; border:1px solid #E5E7EB; border-radius:8px; 
+                font-size:13px; color:#374151; background:white; outline:none;">
+          <option value="">Semua Project</option>
+          {% for proj in summary.by_project.keys() %}
+          <option value="{{ proj }}">{{ proj }}</option>
+          {% endfor %}
+        </select>
+        <select id="filterMonth" onchange="filterTable()"
+          style="padding:7px 12px; border:1px solid #E5E7EB; border-radius:8px; 
+                font-size:13px; color:#374151; background:white; outline:none;">
+          <option value="">Semua Bulan</option>
+          {% for ym in summary.by_yearmonth.keys() %}
+          <option value="{{ ym }}">{{ ym }}</option>
+          {% endfor %}
+        </select>
+        <button onclick="resetFilter()"
+          style="padding:7px 14px; border:1px solid #E5E7EB; border-radius:8px;
+                font-size:13px; color:#6B7280; background:white; cursor:pointer;">
+          <i class="ti ti-x" style="font-size:13px;"></i> Reset
+        </button>
+      </div>
+
+      <div id="filterInfo" style="font-size:12px; color:#6B7280; margin-bottom:8px;"></div>
+    </table>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_script %}
+<script>
+  // Langsung jalankan, tidak perlu tunggu event
+  document.getElementById('loading-overlay').style.display = 'none';
+  document.getElementById('page-content').style.display   = 'block';
+</script>
+
+<script>
+const trendData  = {{ summary.by_yearmonth | tojson }};
+const statusData = {{ summary.by_status    | tojson }};
+
+// Trend chart
+new Chart(document.getElementById('trendChart'), {
+  type: 'bar',
+  data: {
+    labels: Object.keys(trendData),
+    datasets: [{
+      label: 'Bugs',
+      data: Object.values(trendData),
+      backgroundColor: '#FCA5A5',
+      borderColor: '#DC2626',
+      borderWidth: 1,
+      borderRadius: 4,
+    }]
+  },
+  options: {
+    plugins: { legend: { display: false } },
+    scales: {
+      y: { beginAtZero: true, ticks: { stepSize: 1, font: { size: 11 } }, grid: { color: '#F3F4F6' } },
+      x: { ticks: { font: { size: 11 } }, grid: { display: false } }
+    }
+  }
+});
+
+// Status donut
+const STATUS_COLORS = {
+  'Done': '#16A34A', 'Closed': '#16A34A', 'Resolved': '#16A34A',
+  'In Progress': '#2563EB', 'In Review': '#7C3AED',
+  'Blocked': '#DC2626', 'To Do': '#6B7280', 'Open': '#6B7280',
+};
+const statusKeys = Object.keys(statusData);
+const statusColors = statusKeys.map(k => {
+  for (const [kw, c] of Object.entries(STATUS_COLORS)) {
+    if (k.toLowerCase().includes(kw.toLowerCase())) return c;
+  }
+  return '#9CA3AF';
+});
+
+new Chart(document.getElementById('statusChart'), {
+  type: 'doughnut',
+  data: {
+    labels: statusKeys,
+    datasets: [{
+      data: Object.values(statusData),
+      backgroundColor: statusColors,
+      borderWidth: 0,
+    }]
+  },
+  options: {
+    plugins: {
+      legend: { position: 'right', labels: { font: { size: 11 }, boxWidth: 12 } }
+    },
+    cutout: '65%'
+  }
+});
+
+// Filter table
+function filterTable() {
+  const text    = document.getElementById('filterText').value.toLowerCase();
+  const status  = document.getElementById('filterStatus').value.toLowerCase();
+  const project = document.getElementById('filterProject').value.toLowerCase();
+  const month   = document.getElementById('filterMonth').value.toLowerCase();
+
+  const rows  = document.querySelectorAll('#bugTable tbody tr');
+  let visible = 0;
+
+  rows.forEach(row => {
+    const cells      = row.querySelectorAll('td');
+    const mtcNo      = cells[0].textContent.toLowerCase();
+    const mtcName    = cells[1].textContent.toLowerCase();
+    const proj       = cells[2].textContent.toLowerCase();
+    const rowStatus  = cells[3].textContent.toLowerCase();
+    const reporter   = cells[4].textContent.toLowerCase();
+    const rowMonth   = cells[5].textContent.toLowerCase();
+
+    const matchText    = !text    || mtcNo.includes(text) || mtcName.includes(text) || reporter.includes(text);
+    const matchStatus  = !status  || rowStatus.includes(status);
+    const matchProject = !project || proj.includes(project);
+    const matchMonth   = !month   || rowMonth.includes(month);
+
+    if (matchText && matchStatus && matchProject && matchMonth) {
+      row.style.display = '';
+      visible++;
+    } else {
+      row.style.display = 'none';
+    }
+  });
+
+  document.getElementById('filterInfo').textContent =
+    `Menampilkan ${visible} dari ${rows.length} records`;
+}
+
+function resetFilter() {
+  document.getElementById('filterText').value    = '';
+  document.getElementById('filterStatus').value  = '';
+  document.getElementById('filterProject').value = '';
+  document.getElementById('filterMonth').value   = '';
+  filterTable();
+}
+
+</script>
+{% endblock %}
+

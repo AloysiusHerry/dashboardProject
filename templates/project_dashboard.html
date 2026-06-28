@@ -1,0 +1,491 @@
+{% extends "base.html" %}
+{% block title %}Project Dashboard{% endblock %}
+{% block page_title %}Project Dashboard{% endblock %}
+
+{% block content %}
+
+<div id="loading-overlay" style="position:fixed; inset:0; z-index:9999; background:rgba(255,255,255,0.9);
+     display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px;">
+  <div style="display:flex; align-items:center; gap:10px;">
+    <div style="width:36px; height:36px; background:#DBEAFE; border-radius:9px;
+                display:flex; align-items:center; justify-content:center;">
+      <i class="ti ti-folder" style="font-size:20px; color:#2563EB;"></i>
+    </div>
+    <div>
+      <div style="font-size:14px; font-weight:600; color:#111827;">Memuat data...</div>
+      <div style="font-size:11px; color:#9CA3AF;">Membaca dari database</div>
+    </div>
+  </div>
+  <div style="width:280px; height:4px; background:#E5E7EB; border-radius:2px; overflow:hidden;">
+    <div style="height:100%; background:#2563EB; border-radius:2px; animation:loadbar 1.5s ease-in-out infinite;"></div>
+  </div>
+</div>
+
+<style>
+@keyframes loadbar {
+  0%   { width:0%;  margin-left:0%; }
+  50%  { width:60%; margin-left:20%; }
+  100% { width:0%;  margin-left:100%; }
+}
+</style>
+
+<div id="page-content" style="display:none;">
+
+{# ── Tab toggle Project / MTC ── #}
+<div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; flex-wrap:wrap; gap:10px;">
+  <div style="display:flex; gap:6px; background:#F3F4F6; padding:4px; border-radius:10px;">
+    <a href="?tab=project&assignee={{ assignee_filter }}"
+       style="padding:6px 20px; border-radius:8px; font-size:13px; font-weight:500; text-decoration:none;
+              {{ 'background:white; color:#111827; box-shadow:0 1px 3px rgba(0,0,0,0.1)' if tab == 'project' else 'color:#6B7280' }}">
+      <i class="ti ti-folder" style="font-size:13px;"></i> Project
+    </a>
+    <a href="?tab=mtc&assignee={{ assignee_filter }}"
+       style="padding:6px 20px; border-radius:8px; font-size:13px; font-weight:500; text-decoration:none;
+              {{ 'background:white; color:#111827; box-shadow:0 1px 3px rgba(0,0,0,0.1)' if tab == 'mtc' else 'color:#6B7280' }}">
+      <i class="ti ti-server" style="font-size:13px;"></i> MTC
+    </a>
+  </div>
+
+  {# Filter #}
+  <div style="display:flex; gap:8px; flex-wrap:wrap;">
+    <input type="text" id="filterName" placeholder="{{ 'Cari project...' if tab == 'project' else 'Cari MTC...' }}"
+      value="{{ name_filter }}"
+      style="padding:7px 12px; border:1px solid #E5E7EB; border-radius:8px;
+             font-size:13px; outline:none; color:#111827; min-width:180px;">
+    <select id="filterAssignee"
+      style="padding:7px 12px; border:1px solid #E5E7EB; border-radius:8px;
+             font-size:13px; color:#374151; background:white; outline:none; min-width:160px;">
+      <option value="">Semua Assignee</option>
+      {% for a in all_assignees %}
+      <option value="{{ a }}" {{ 'selected' if assignee_filter == a }}>{{ a }}</option>
+      {% endfor %}
+    </select>
+    <select id="filterLeader"
+      style="padding:7px 12px; border:1px solid #E5E7EB; border-radius:8px;
+            font-size:13px; color:#374151; background:white; outline:none; min-width:160px;">
+      <option value="">Semua Leader</option>
+      {% for l in all_leaders %}
+      <option value="{{ l }}" {{ 'selected' if leader_filter == l }}>{{ l }}</option>
+      {% endfor %}
+    </select>
+    <select id="filterManager"
+      style="padding:7px 12px; border:1px solid #E5E7EB; border-radius:8px;
+            font-size:13px; color:#374151; background:white; outline:none; min-width:160px;">
+      <option value="">Semua Manager</option>
+      {% for m in all_managers %}
+      <option value="{{ m }}" {{ 'selected' if manager_filter == m }}>{{ m }}</option>
+      {% endfor %}
+    </select>
+    <button onclick="applyFilter()"
+      style="padding:7px 14px; border:none; border-radius:8px;
+             font-size:13px; color:white; background:#2563EB; cursor:pointer;">
+      <i class="ti ti-search" style="font-size:13px;"></i> Cari
+    </button>
+    <button onclick="resetFilter()"
+      style="padding:7px 14px; border:1px solid #E5E7EB; border-radius:8px;
+             font-size:13px; color:#6B7280; background:white; cursor:pointer;">
+      <i class="ti ti-x" style="font-size:13px;"></i> Reset
+    </button>
+  </div>
+</div>
+
+{# ── Stat cards ── #}
+{% set items         = projects if tab == 'project' else mtcs %}
+{% set proj_done     = items | selectattr('is_done', 'equalto', true)  | list | length %}
+{% set proj_inprog   = items | selectattr('is_done', 'equalto', false) | list | length %}
+{% set total_mtc     = items | sum(attribute='total_mtc') %}
+{% set total_uat     = items | sum(attribute='total_uat') %}
+{% set bugs_done     = items | sum(attribute='bugs_done') %}
+{% set bugs_inprog   = items | sum(attribute='bugs_inprog') %}
+
+<div class="row g-3 mb-4">
+  <div class="col-md-2">
+    <div class="stat-card">
+      <div class="stat-label">{{ 'Project' if tab == 'project' else 'MTC' }} Done</div>
+      <div class="stat-value" style="color:#166534">{{ proj_done }}</div>
+      <span class="stat-badge badge-up"><i class="ti ti-circle-check" style="font-size:12px"></i> Selesai</span>
+    </div>
+  </div>
+  <div class="col-md-2">
+    <div class="stat-card">
+      <div class="stat-label">{{ 'Project' if tab == 'project' else 'MTC' }} In Progress</div>
+      <div class="stat-value" style="color:#1D4ED8">{{ proj_inprog }}</div>
+      <span class="stat-badge badge-neutral"><i class="ti ti-loader" style="font-size:12px"></i> Berjalan</span>
+    </div>
+  </div>
+  <div class="col-md-2">
+    <div class="stat-card">
+      <div class="stat-label">Total Task UAT</div>
+      <div class="stat-value" style="color:#2563EB">{{ total_uat }}</div>
+      <span class="stat-badge" style="background:#EDE9FE; color:#7C3AED;">
+        <i class="ti ti-list" style="font-size:12px"></i> UAT
+      </span>
+    </div>
+  </div>
+  <div class="col-md-2">
+    <div class="stat-card">
+      <div class="stat-label">Total Task MTC</div>
+      <div class="stat-value" style="color:#7C3AED">{{ total_mtc }}</div>
+      <span class="stat-badge" style="background:#DBEAFE; color:#1E40AF;">
+        <i class="ti ti-list" style="font-size:12px"></i> MTC
+      </span>
+    </div>
+  </div>
+  <div class="col-md-2">
+    <div class="stat-card">
+      <div class="stat-label">Bugs Done</div>
+      <div class="stat-value" style="color:#166534">{{ bugs_done }}</div>
+      <span class="stat-badge badge-up"><i class="ti ti-bug" style="font-size:12px"></i> Selesai</span>
+    </div>
+  </div>
+  <div class="col-md-2">
+    <div class="stat-card">
+      <div class="stat-label">Bugs In Progress</div>
+      <div class="stat-value" style="color:#DC2626">{{ bugs_inprog }}</div>
+      <span class="stat-badge badge-down"><i class="ti ti-bug" style="font-size:12px"></i> Berjalan</span>
+    </div>
+  </div>
+</div>
+
+{# ── Cards grid ── #}
+{% set group_colors = {
+  'UAT':        '#2563EB',
+  'UAT_BUGS':   '#DC2626',
+  'MTC':        '#7C3AED',
+  'MTC_BUGS':   '#BE185D',
+  'Support':    '#D97706',
+  'OPR':        '#0891B2',
+  'Daily Task': '#16A34A',
+  'Lainnya':    '#6B7280'
+} %}
+{% set group_bg = {
+  'UAT':        '#DBEAFE',
+  'UAT_BUGS':   '#FEE2E2',
+  'MTC':        '#EDE9FE',
+  'MTC_BUGS':   '#FCE7F3',
+  'Support':    '#FEF3C7',
+  'OPR':        '#CFFAFE',
+  'Daily Task': '#DCFCE7',
+  'Lainnya':    '#F3F4F6'
+} %}
+
+<div class="card-box">
+  <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
+    <div class="card-box-title" style="margin-bottom:0;">
+      {{ 'Project' if tab == 'project' else 'MTC' }} List
+    </div>
+    <span style="font-size:12px; color:#9CA3AF;">{{ items | length }} ditemukan</span>
+  </div>
+
+  {% if items %}
+  <table class="jira-table" id="mainTable">
+    <thead>
+      <tr>
+        <th onclick="sortTable(0)" style="cursor:pointer; user-select:none;">
+          No <i class="ti ti-selector" style="font-size:10px;"></i>
+        </th>
+        <th onclick="sortTable(1)" style="cursor:pointer; user-select:none;">
+          {{ 'Project' if tab == 'project' else 'MTC' }} <i class="ti ti-selector" style="font-size:10px;"></i>
+        </th>
+        {% if tab == 'project' %}
+        <th onclick="sortTable(2)" style="cursor:pointer; user-select:none; text-align:center;">
+          UAT <i class="ti ti-selector" style="font-size:10px;"></i>
+        </th>
+        <th onclick="sortTable(3)" style="cursor:pointer; user-select:none; text-align:center;">
+          UAT Bugs <i class="ti ti-selector" style="font-size:10px;"></i>
+        </th>
+        {% else %}
+        <th onclick="sortTable(2)" style="cursor:pointer; user-select:none; text-align:center;">
+          MTC <i class="ti ti-selector" style="font-size:10px;"></i>
+        </th>
+        <th onclick="sortTable(3)" style="cursor:pointer; user-select:none; text-align:center;">
+          MTC Bugs <i class="ti ti-selector" style="font-size:10px;"></i>
+        </th>
+        {% endif %}
+        <th onclick="sortTable(4)" style="cursor:pointer; user-select:none; text-align:center;">
+          Support <i class="ti ti-selector" style="font-size:10px;"></i>
+        </th>
+        <th onclick="sortTable(5)" style="cursor:pointer; user-select:none; text-align:center;">
+          Daily Task <i class="ti ti-selector" style="font-size:10px;"></i>
+        </th>
+        <th onclick="sortTable(6)" style="cursor:pointer; user-select:none; text-align:center;">
+          Total <i class="ti ti-selector" style="font-size:10px;"></i>
+        </th>
+        <th onclick="sortTable(7)" style="cursor:pointer; user-select:none; text-align:center;">
+          Done % <i class="ti ti-selector" style="font-size:10px;"></i>
+        </th>
+        <th>Assignee</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in items %}
+      <tr style="{{ 'background:#F0FDF4;' if item.is_done else '' }}">
+        <td style="color:#9CA3AF; font-size:12px;">{{ loop.index }}</td>
+        <td>
+          <div style="font-size:13px; font-weight:500; color:#111827;">{{ item.name }}</div>
+          <div style="font-size:11px; color:#9CA3AF;">{{ item.key }}</div>
+        </td>
+        {% if tab == 'project' %}
+        <td style="text-align:center;">
+          <span style="font-size:13px; font-weight:500; color:#2563EB;">
+            {{ item.groups.get('UAT', 0) }}
+          </span>
+        </td>
+        <td style="text-align:center;">
+          <span style="font-size:13px; font-weight:500; color:#DC2626;">
+            {{ item.groups.get('UAT_BUGS', 0) }}
+          </span>
+        </td>
+        {% else %}
+        <td style="text-align:center;">
+          <span style="font-size:13px; font-weight:500; color:#7C3AED;">
+            {{ item.groups.get('MTC', 0) }}
+          </span>
+        </td>
+        <td style="text-align:center;">
+          <span style="font-size:13px; font-weight:500; color:#BE185D;">
+            {{ item.groups.get('MTC_BUGS', 0) }}
+          </span>
+        </td>
+        {% endif %}
+        <td style="text-align:center;">
+          <span style="font-size:13px; font-weight:500; color:#D97706;">
+            {{ item.groups.get('Support', 0) }}
+          </span>
+        </td>
+        <td style="text-align:center;">
+          <span style="font-size:13px; font-weight:500; color:#16A34A;">
+            {{ item.groups.get('Daily Task', 0) }}
+          </span>
+        </td>
+        <td style="text-align:center;">
+          <span style="font-size:13px; font-weight:600; color:#111827;">{{ item.total }}</span>
+        </td>
+        <td style="min-width:100px;">
+          <div style="display:flex; align-items:center; gap:6px;">
+            <div class="progress-thin" style="flex:1;">
+              <div class="progress-fill" style="width:{{ item.done_pct }}%; background:#16A34A;"></div>
+            </div>
+            <span style="font-size:11px; font-weight:600; color:#166534; white-space:nowrap;">
+              {{ item.done_pct }}%
+            </span>
+          </div>
+        </td>
+        <td>
+          <div style="display:flex; gap:3px;">
+            {% for name in item.assignees[:5] %}
+            {% set parts = name.split() %}
+            {% set initials = parts[0][0] | upper + (parts[-1][0] | upper if parts | length > 1 else '') %}
+            <div title="{{ name }}"
+                 style="width:24px; height:24px; border-radius:50%; background:#E0E7FF; color:#3730A3;
+                        display:flex; align-items:center; justify-content:center;
+                        font-size:9px; font-weight:700; cursor:default; flex-shrink:0;">
+              {{ initials }}
+            </div>
+            {% endfor %}
+            {% if item.assignees | length > 5 %}
+            <div style="width:24px; height:24px; border-radius:50%; background:#F3F4F6; color:#6B7280;
+                        display:flex; align-items:center; justify-content:center; font-size:9px; font-weight:600;">
+              +{{ item.assignees | length - 5 }}
+            </div>
+            {% endif %}
+          </div>
+        </td>
+        <td>
+          {% if tab == 'project' %}
+          <a href="{{ url_for('project_detail', project_name=item.name) }}"
+          {% else %}
+          <a href="{{ url_for('mtc_detail', parent_key=item.key) }}"
+          {% endif %}
+             style="font-size:11px; color:#2563EB; text-decoration:none; white-space:nowrap;
+                    padding:4px 8px; border:1px solid #BFDBFE; border-radius:6px;
+                    display:inline-flex; align-items:center; gap:3px;">
+            Detail <i class="ti ti-arrow-right" style="font-size:11px;"></i>
+          </a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {% else %}
+  <div style="text-align:center; padding:60px 20px; color:#6B7280;">
+    <i class="ti ti-folder-off" style="font-size:40px; display:block; margin-bottom:10px;"></i>
+    <div style="font-size:14px; font-weight:500;">Tidak ada data ditemukan</div>
+    <div style="font-size:12px; margin-top:4px;">Coba ubah filter pencarian</div>
+  </div>
+  {% endif %}
+
+{# Pagination #}
+  <div style="display:flex; align-items:center; justify-content:space-between; margin-top:14px;">
+    <span id="paginationInfo" style="font-size:12px; color:#6B7280;"></span>
+    <div style="display:flex; gap:4px;" id="paginationButtons"></div>
+  </div>
+
+</div>
+
+{% if not items %}
+<div style="text-align:center; padding:60px 20px; color:#6B7280;">
+  <i class="ti ti-folder-off" style="font-size:40px; display:block; margin-bottom:10px;"></i>
+  <div style="font-size:14px; font-weight:500;">Tidak ada data ditemukan</div>
+  <div style="font-size:12px; margin-top:4px;">Coba ubah filter pencarian</div>
+</div>
+{% endif %}
+
+</div> {# end page-content #}
+
+{% endblock %}
+
+{% block extra_script %}
+<script>
+  document.getElementById('loading-overlay').style.display = 'none';
+  document.getElementById('page-content').style.display   = 'block';
+
+  function applyFilter() {
+    const name     = document.getElementById('filterName').value;
+    const assignee = document.getElementById('filterAssignee').value;
+    const leader   = document.getElementById('filterLeader').value;
+    const manager  = document.getElementById('filterManager').value;
+    const tab      = '{{ tab }}';
+    const params   = new URLSearchParams();
+    params.set('tab', tab);
+    if (name)     params.set('name', name);
+    if (assignee) params.set('assignee', assignee);
+    if (leader)   params.set('leader', leader);
+    if (manager)  params.set('manager', manager);
+    window.location.href = '?' + params.toString();
+  }
+
+  function resetFilter() {
+    window.location.href = '?tab={{ tab }}';
+  }
+
+  // Sort table
+  let sortDir = {};
+  function sortTable(colIdx) {
+    const table = document.getElementById('mainTable');
+    const tbody = table.querySelector('tbody');
+    const rows  = Array.from(tbody.querySelectorAll('tr'));
+
+    sortDir[colIdx] = !sortDir[colIdx];
+    const asc = sortDir[colIdx];
+
+    rows.sort((a, b) => {
+      const aCell = a.querySelectorAll('td')[colIdx];
+      const bCell = b.querySelectorAll('td')[colIdx];
+      const aVal  = aCell ? aCell.innerText.trim() : '';
+      const bVal  = bCell ? bCell.innerText.trim() : '';
+
+      // Coba parse angka dulu
+      const aNum = parseFloat(aVal.replace('%', ''));
+      const bNum = parseFloat(bVal.replace('%', ''));
+
+      if (!isNaN(aNum) && !isNaN(bNum)) {
+        return asc ? aNum - bNum : bNum - aNum;
+      }
+      return asc ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+    });
+
+    // Update nomor urut setelah sort
+    rows.forEach((row, i) => {
+      row.querySelector('td').innerText = i + 1;
+      tbody.appendChild(row);
+    });
+
+    // Update header icon
+    table.querySelectorAll('th').forEach((th, i) => {
+      const icon = th.querySelector('i');
+      if (!icon) return;
+      icon.className = i === colIdx
+        ? (asc ? 'ti ti-sort-ascending' : 'ti ti-sort-descending')
+        : 'ti ti-selector';
+      icon.style.fontSize = '10px';
+    });
+  }
+
+  // ── Pagination ──
+const ROWS_PER_PAGE = 10;
+let currentPage     = 1;
+let allRows         = [];
+
+function initPagination() {
+  const tbody = document.querySelector('#mainTable tbody');
+  if (!tbody) return;
+  allRows = Array.from(tbody.querySelectorAll('tr'));
+  renderPage(1);
+}
+
+function renderPage(page) {
+  currentPage = page;
+  const total = allRows.length;
+  const pages = Math.ceil(total / ROWS_PER_PAGE);
+  const start = (page - 1) * ROWS_PER_PAGE;
+  const end   = Math.min(start + ROWS_PER_PAGE, total);
+
+  // Show/hide rows
+  allRows.forEach((row, i) => {
+    row.style.display = (i >= start && i < end) ? '' : 'none';
+  });
+
+  // Info
+  document.getElementById('paginationInfo').textContent =
+    `Menampilkan ${start + 1}–${end} dari ${total} data`;
+
+  // Buttons
+  const btnContainer = document.getElementById('paginationButtons');
+  btnContainer.innerHTML = '';
+
+  // Prev
+  const prev = document.createElement('button');
+  prev.textContent = '←';
+  prev.disabled    = page === 1;
+  prev.onclick     = () => renderPage(page - 1);
+  prev.style.cssText = `padding:4px 10px; border:1px solid #E5E7EB; border-radius:6px;
+    background:white; font-size:12px; cursor:pointer; color:#374151;`;
+  btnContainer.appendChild(prev);
+
+  // Page numbers
+  for (let i = 1; i <= pages; i++) {
+    if (pages > 7 && i > 2 && i < pages - 1 && Math.abs(i - page) > 1) {
+      if (i === 3 || i === pages - 2) {
+        const dots = document.createElement('span');
+        dots.textContent = '...';
+        dots.style.cssText = 'padding:4px 6px; font-size:12px; color:#9CA3AF;';
+        btnContainer.appendChild(dots);
+      }
+      continue;
+    }
+    const btn = document.createElement('button');
+    btn.textContent = i;
+    btn.onclick     = () => renderPage(i);
+    btn.style.cssText = `padding:4px 10px; border:1px solid ${i === page ? '#2563EB' : '#E5E7EB'};
+      border-radius:6px; background:${i === page ? '#2563EB' : 'white'};
+      color:${i === page ? 'white' : '#374151'}; font-size:12px; cursor:pointer;`;
+    btnContainer.appendChild(btn);
+  }
+
+  // Next
+  const next = document.createElement('button');
+  next.textContent = '→';
+  next.disabled    = page === pages;
+  next.onclick     = () => renderPage(page + 1);
+  next.style.cssText = `padding:4px 10px; border:1px solid #E5E7EB; border-radius:6px;
+    background:white; font-size:12px; cursor:pointer; color:#374151;`;
+  btnContainer.appendChild(next);
+}
+
+// Update sortTable — re-init pagination setelah sort
+const _origSort = sortTable;
+sortTable = function(colIdx) {
+  _origSort(colIdx);
+  // Ambil ulang rows setelah sort
+  const tbody = document.querySelector('#mainTable tbody');
+  allRows = Array.from(tbody.querySelectorAll('tr'));
+  renderPage(1);
+};
+
+// Init saat halaman load
+initPagination();
+</script>
+{% endblock %}

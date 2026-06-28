@@ -1,0 +1,430 @@
+{% extends "base.html" %}
+{% block title %}Leader View{% endblock %}
+{% block page_title %}Leader View{% endblock %}
+
+{% block extra_style %}
+<style>
+@keyframes loadbar {
+  0%   { width:0%;  margin-left:0%; }
+  50%  { width:60%; margin-left:20%; }
+  100% { width:0%;  margin-left:100%; }
+}
+.overload-badge {
+  display:inline-flex; align-items:center; gap:3px;
+  background:#FEF3C7; color:#92400E;
+  font-size:10px; font-weight:600;
+  padding:2px 7px; border-radius:20px;
+}
+.leader-section { margin-bottom:32px; }
+.leader-header {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:14px 18px; background:#111827; border-radius:12px 12px 0 0;
+}
+.staff-table-wrap {
+  border:1px solid #E5E7EB; border-top:none;
+  border-radius:0 0 12px 12px; overflow:hidden;
+}
+.chart-section {
+  background:white; border:1px solid #E5E7EB; border-top:none; padding:16px 18px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div id="loading-overlay" style="position:fixed; inset:0; z-index:9999; background:rgba(255,255,255,0.9);
+     display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px;">
+  <div style="display:flex; align-items:center; gap:10px;">
+    <div style="width:36px; height:36px; background:#DBEAFE; border-radius:9px;
+                display:flex; align-items:center; justify-content:center;">
+      <i class="ti ti-user-check" style="font-size:20px; color:#2563EB;"></i>
+    </div>
+    <div>
+      <div style="font-size:14px; font-weight:600; color:#111827;">Memuat Leader View...</div>
+      <div style="font-size:11px; color:#9CA3AF;">Membaca dari database</div>
+    </div>
+  </div>
+  <div style="width:280px; height:4px; background:#E5E7EB; border-radius:2px; overflow:hidden;">
+    <div style="height:100%; background:#2563EB; border-radius:2px; animation:loadbar 1.5s ease-in-out infinite;"></div>
+  </div>
+</div>
+
+<div id="page-content" style="display:none;">
+
+{# ── Filter bar ── #}
+<div style="display:flex; align-items:center; gap:10px; margin-bottom:20px; flex-wrap:wrap;">
+  <select id="filterLeader" onchange="applyFilter()"
+    style="padding:7px 12px; border:1px solid #E5E7EB; border-radius:8px;
+           font-size:13px; color:#374151; background:white; outline:none; min-width:180px;">
+    <option value="">Semua Leader</option>
+    {% for l in all_leaders %}
+    <option value="{{ l }}" {{ 'selected' if leader_filter == l }}>{{ l }}</option>
+    {% endfor %}
+  </select>
+
+  <select id="filterMonth" onchange="applyFilter()"
+    style="padding:7px 12px; border:1px solid #E5E7EB; border-radius:8px;
+           font-size:13px; color:#374151; background:white; outline:none; min-width:140px;">
+    <option value="">Semua Bulan</option>
+    {% for m in available_months %}
+    <option value="{{ m }}" {{ 'selected' if month_filter == m }}>{{ m }}</option>
+    {% endfor %}
+  </select>
+
+  <button onclick="resetFilter()"
+    style="padding:7px 14px; border:1px solid #E5E7EB; border-radius:8px;
+           font-size:13px; color:#6B7280; background:white; cursor:pointer;">
+    <i class="ti ti-x" style="font-size:13px;"></i> Reset
+  </button>
+
+  <button onclick="exportExcel()"
+    style="padding:7px 14px; border:none; border-radius:8px;
+           font-size:13px; color:white; background:#166534; cursor:pointer; margin-left:auto;">
+    <i class="ti ti-file-spreadsheet" style="font-size:13px;"></i> Export Excel
+  </button>
+</div>
+
+{# ── Summary stat cards ── #}
+{% set all_staff  = leaders_data.values() | list %}
+{% set total_staff = all_staff | sum(attribute='staff_count') %}
+{% set total_task  = all_staff | sum(attribute='total_task') %}
+{% set total_done  = all_staff | sum(attribute='total_done') %}
+{% set total_over  = all_staff | sum(attribute='overload_count') %}
+{% set done_pct    = ((total_done / total_task) * 100) | round | int if total_task else 0 %}
+
+<div class="row g-3 mb-4">
+  <div class="col-md-3">
+    <div class="stat-card">
+      <div class="stat-label">Total Staff</div>
+      <div class="stat-value" style="color:#1D4ED8">{{ total_staff }}</div>
+      <span class="stat-badge badge-neutral"><i class="ti ti-users" style="font-size:12px"></i> Terdaftar</span>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="stat-card">
+      <div class="stat-label">Total Task UAT</div>
+      <div class="stat-value">{{ total_task }}</div>
+      <span class="stat-badge badge-neutral"><i class="ti ti-list" style="font-size:12px"></i> Keseluruhan</span>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="stat-card">
+      <div class="stat-label">Done</div>
+      <div class="stat-value" style="color:#166534">{{ total_done }}</div>
+      <div class="progress-thin" style="margin-top:8px;">
+        <div class="progress-fill" style="width:{{ done_pct }}%; background:#16A34A;"></div>
+      </div>
+      <span class="stat-badge badge-up" style="margin-top:6px;">{{ done_pct }}%</span>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="stat-card">
+      <div class="stat-label">Staff Overload</div>
+      <div class="stat-value" style="color:#D97706">{{ total_over }}</div>
+      <span class="stat-badge badge-down">
+        <i class="ti ti-alert-triangle" style="font-size:12px"></i> > 1 project aktif
+      </span>
+    </div>
+  </div>
+</div>
+
+{# ── Per Leader section ── #}
+{% for leader_name, data in leaders_data.items() %}
+<div class="leader-section">
+
+  {# Leader header #}
+  <div class="leader-header">
+    <div style="display:flex; align-items:center; gap:12px;">
+      {% set lparts = leader_name.split() %}
+      {% set linitials = lparts[0][0] | upper + (lparts[-1][0] | upper if lparts | length > 1 else '') %}
+      <div style="width:36px; height:36px; border-radius:50%; background:#2563EB;
+                  display:flex; align-items:center; justify-content:center;
+                  font-size:13px; font-weight:700; color:white; flex-shrink:0;">
+        {{ linitials }}
+      </div>
+      <div>
+        <div style="font-size:14px; font-weight:600; color:white;">{{ leader_name }}</div>
+        <div style="font-size:11px; color:rgba(255,255,255,0.5);">
+          Manager: {{ data.manager }} · {{ data.staff_count }} staff
+        </div>
+      </div>
+    </div>
+    <div style="display:flex; align-items:center; gap:20px;">
+      <div style="text-align:right;">
+        <div style="font-size:11px; color:rgba(255,255,255,0.4);">Task Done</div>
+        <div style="font-size:16px; font-weight:700; color:#4ADE80;">
+          {{ data.total_done }}/{{ data.total_task }}
+          <span style="font-size:12px; color:rgba(255,255,255,0.5);">({{ data.done_pct }}%)</span>
+        </div>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-size:11px; color:rgba(255,255,255,0.4);">Bugs UAT/MTC</div>
+        <div style="font-size:16px; font-weight:700; color:#FCA5A5;">
+          {{ data.bugs_uat }} / {{ data.bugs_mtc }}
+        </div>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-size:11px; color:rgba(255,255,255,0.4);">Kapasitas</div>
+        <div style="font-size:16px; font-weight:700; color:#93C5FD;">
+          {{ data.total_capacity | round | int }} jam
+        </div>
+      </div>
+      {% if data.overload_count > 0 %}
+      <span style="background:#FEF3C7; color:#92400E; font-size:11px; font-weight:600;
+                   padding:4px 10px; border-radius:20px;">
+        <i class="ti ti-alert-triangle" style="font-size:11px;"></i>
+        {{ data.overload_count }} overload
+      </span>
+      {% endif %}
+    </div>
+  </div>
+
+  {# Charts — 2 chart per leader #}
+  <div class="chart-section">
+    <div class="row g-3">
+      <div class="col-md-6">
+        <div style="font-size:12px; color:#6B7280; margin-bottom:8px;">
+          <i class="ti ti-chart-bar" style="font-size:12px;"></i> Produktivitas per Staff
+        </div>
+        <canvas id="chart-prod-{{ loop.index }}" height="100"></canvas>
+      </div>
+      <div class="col-md-6">
+        <div style="font-size:12px; color:#6B7280; margin-bottom:8px;">
+          <i class="ti ti-clock" style="font-size:12px;"></i> Utilisasi Jam Kerja per Staff (Aktual vs Kapasitas)
+        </div>
+        <canvas id="chart-util-{{ loop.index }}" height="100"></canvas>
+      </div>
+    </div>
+  </div>
+
+  {# Staff table #}
+  <div class="staff-table-wrap">
+    <table class="jira-table">
+      <thead>
+        <tr>
+          <th style="width:30px;">#</th>
+          <th>Nama</th>
+          <th style="text-align:center;">Task UAT</th>
+          <th style="text-align:center;">Done</th>
+          <th style="text-align:center;">Aktif</th>
+          <th style="min-width:100px;">Done %</th>
+          <th style="text-align:center;">Bugs UAT</th>
+          <th style="text-align:center;">Bugs MTC</th>
+          <th style="text-align:center;">Duration (Jam)</th>
+          <th style="text-align:center;">Utilisasi %</th>
+          <th>Project Aktif</th>
+          <th style="text-align:center;">Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in data.staff %}
+        <tr style="{{ 'background:#FFFBEB;' if s.overload else '' }}">
+          <td style="color:#9CA3AF; font-size:12px;">{{ loop.index }}</td>
+          <td>
+            {% set parts = s.name.split() %}
+            {% set initials = parts[0][0] | upper + (parts[-1][0] | upper if parts | length > 1 else '') %}
+            <div style="display:flex; align-items:center; gap:8px;">
+              <div style="width:28px; height:28px; border-radius:50%; background:#E0E7FF; color:#3730A3;
+                          display:flex; align-items:center; justify-content:center;
+                          font-size:10px; font-weight:700; flex-shrink:0;">
+                {{ initials }}
+              </div>
+              <span style="font-size:13px; font-weight:500; color:#111827;">{{ s.name }}</span>
+            </div>
+          </td>
+          <td style="text-align:center;">
+            <span style="font-size:13px; font-weight:500; color:#2563EB;">{{ s.task_uat }}</span>
+          </td>
+          <td style="text-align:center;">
+            <span style="font-size:13px; font-weight:500; color:#166534;">{{ s.task_done }}</span>
+          </td>
+          <td style="text-align:center;">
+            <span style="font-size:13px; font-weight:500; color:#D97706;">{{ s.task_inprog }}</span>
+          </td>
+          <td style="min-width:100px;">
+            <div style="display:flex; align-items:center; gap:6px;">
+              <div class="progress-thin" style="flex:1;">
+                <div class="progress-fill" style="width:{{ s.done_pct }}%; background:#16A34A;"></div>
+              </div>
+              <span style="font-size:11px; font-weight:600; color:#166534; white-space:nowrap;">
+                {{ s.done_pct }}%
+              </span>
+            </div>
+          </td>
+          <td style="text-align:center;">
+            <span style="font-size:13px; font-weight:500; color:#DC2626;">{{ s.bugs_uat }}</span>
+          </td>
+          <td style="text-align:center;">
+            <span style="font-size:13px; font-weight:500; color:#BE185D;">{{ s.bugs_mtc }}</span>
+          </td>
+          <td style="text-align:center;">
+            <span style="font-size:13px; font-weight:500; color:#0891B2;">{{ s.duration_hours }}</span>
+          </td>
+          <td style="text-align:center;">
+            <span style="font-size:12px; font-weight:600;
+                         color:{{ '#166534' if s.util_pct >= 70 else '#D97706' if s.util_pct >= 40 else '#991B1B' }};">
+              {{ s.util_pct }}%
+            </span>
+          </td>
+          <td style="font-size:11px; color:#6B7280; max-width:180px;">
+            {% if s.projects %}
+              {% for proj in s.projects %}
+              <span style="display:inline-block; background:#F3F4F6; color:#374151;
+                           padding:1px 6px; border-radius:4px; margin:1px; font-size:10px;">
+                {{ proj[:20] }}
+              </span>
+              {% endfor %}
+            {% else %}
+              <span style="color:#D1D5DB;">—</span>
+            {% endif %}
+          </td>
+          <td style="text-align:center;">
+            {% if s.overload %}
+            <span class="overload-badge">
+              <i class="ti ti-alert-triangle" style="font-size:10px;"></i> Overload
+            </span>
+            {% elif s.task_inprog > 0 %}
+            <span style="background:#DBEAFE; color:#1E40AF; font-size:10px; font-weight:500;
+                         padding:2px 7px; border-radius:20px;">Active</span>
+            {% else %}
+            <span style="background:#F3F4F6; color:#6B7280; font-size:10px;
+                         padding:2px 7px; border-radius:20px;">—</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+</div>
+{% endfor %}
+
+</div> {# end page-content #}
+{% endblock %}
+
+{% block extra_script %}
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+<script>
+  document.getElementById('loading-overlay').style.display = 'none';
+  document.getElementById('page-content').style.display   = 'block';
+
+  function applyFilter() {
+    const leader = document.getElementById('filterLeader').value;
+    const month  = document.getElementById('filterMonth').value;
+    const params = new URLSearchParams();
+    if (leader) params.set('leader', leader);
+    if (month)  params.set('month', month);
+    window.location.href = '?' + params.toString();
+  }
+
+  function resetFilter() {
+    window.location.href = '{{ url_for("leader_view") }}';
+  }
+
+  // ── Charts ──
+  const leadersData   = {{ leaders_data | tojson | safe }};
+  const capacityMap   = {{ (leaders_data.values() | list | first).capacity_map | tojson | safe if leaders_data else '{}' }};
+  const totalCapacity = {{ (leaders_data.values() | list | first).total_capacity | default(0) }};
+  let chartIdx = 1;
+
+  for (const [leaderName, data] of Object.entries(leadersData)) {
+    const labels = data.staff.map(s => s.name.split(' ')[0]);
+    const capPerStaff = totalCapacity; // kapasitas sama untuk semua staff
+
+    // Chart 1 — Produktivitas
+    const prodCanvas = document.getElementById('chart-prod-' + chartIdx);
+    if (prodCanvas) {
+      new Chart(prodCanvas, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [
+            { label: 'Done',        data: data.staff.map(s => s.task_done),   backgroundColor: '#16A34A', borderRadius: 3 },
+            { label: 'Aktif',       data: data.staff.map(s => s.task_inprog), backgroundColor: '#2563EB', borderRadius: 3 },
+            { label: 'Bugs UAT',    data: data.staff.map(s => s.bugs_uat),    backgroundColor: '#DC2626', borderRadius: 3 },
+            { label: 'Bugs MTC',    data: data.staff.map(s => s.bugs_mtc),    backgroundColor: '#BE185D', borderRadius: 3 },
+          ]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { position: 'top', labels: { font: { size: 10 }, boxWidth: 10 } } },
+          scales: {
+            x: { ticks: { font: { size: 10 } }, grid: { display: false } },
+            y: { beginAtZero: true, ticks: { stepSize: 1, font: { size: 10 } }, grid: { color: '#F3F4F6' } }
+          }
+        }
+      });
+    }
+
+    // Chart 2 — Utilisasi jam kerja
+    const utilCanvas = document.getElementById('chart-util-' + chartIdx);
+    if (utilCanvas) {
+      new Chart(utilCanvas, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [
+            {
+              label: 'Aktual (Jam)',
+              data: data.staff.map(s => s.duration_hours),
+              backgroundColor: '#0891B2',
+              borderRadius: 3,
+            },
+            {
+              label: 'Kapasitas (Jam)',
+              data: data.staff.map(() => capPerStaff),
+              backgroundColor: '#E5E7EB',
+              borderRadius: 3,
+            },
+          ]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { position: 'top', labels: { font: { size: 10 }, boxWidth: 10 } } },
+          scales: {
+            x: { ticks: { font: { size: 10 } }, grid: { display: false } },
+            y: { beginAtZero: true, ticks: { font: { size: 10 } }, grid: { color: '#F3F4F6' } }
+          }
+        }
+      });
+    }
+
+    chartIdx++;
+  }
+
+  // ── Export Excel ──
+  async function exportExcel() {
+    const leader = document.getElementById('filterLeader').value;
+    const month  = document.getElementById('filterMonth').value;
+
+    const params = new URLSearchParams();
+    if (leader) params.set('leader', leader);
+    if (month)  params.set('month', month);
+
+    const res  = await fetch('/leader-view/export?' + params.toString());
+    const data = await res.json();
+
+    if (!data.length) {
+      alert('Tidak ada data untuk diexport');
+      return;
+    }
+
+    const wb = XLSX.utils.book_new();
+
+    // 1 sheet semua data
+    const headers = Object.keys(data[0]);
+    const rows    = [headers, ...data.map(r => headers.map(h => r[h]))];
+    const ws      = XLSX.utils.aoa_to_sheet(rows);
+
+    // Auto column width
+    ws['!cols'] = headers.map(h => ({ wch: Math.max(h.length + 2, 15) }));
+
+    XLSX.utils.book_append_sheet(wb, ws, 'Detail Task');
+
+    const monthLabel = month || 'all';
+    const leaderLabel = leader ? `_${leader.split(' ')[0]}` : '';
+    XLSX.writeFile(wb, `leader_view${leaderLabel}_${monthLabel}.xlsx`);
+  }
+</script>
+{% endblock %}

@@ -1,0 +1,409 @@
+{% extends "base.html" %}
+{% block title %}Leaderboard Dashboard{% endblock %}
+{% block page_title %}Leaderboard Dashboard{% endblock %}
+
+{% block content %}
+
+<div id="loading-overlay" style="position:fixed; inset:0; z-index:9999; background:rgba(255,255,255,0.9);
+     display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px;">
+  <div style="display:flex; align-items:center; gap:10px;">
+    <div style="width:36px; height:36px; background:#FEF3C7; border-radius:9px;
+                display:flex; align-items:center; justify-content:center;">
+      <i class="ti ti-trophy" style="font-size:20px; color:#D97706;"></i>
+    </div>
+    <div>
+      <div style="font-size:14px; font-weight:600; color:#111827;">Memuat leaderboard...</div>
+      <div style="font-size:11px; color:#9CA3AF;">Membaca dari database</div>
+    </div>
+  </div>
+  <div style="width:280px; height:4px; background:#E5E7EB; border-radius:2px; overflow:hidden;">
+    <div style="height:100%; background:#D97706; border-radius:2px; animation:loadbar 1.5s ease-in-out infinite;"></div>
+  </div>
+</div>
+
+<style>
+@keyframes loadbar {
+  0%   { width:0%;  margin-left:0%; }
+  50%  { width:60%; margin-left:20%; }
+  100% { width:0%;  margin-left:100%; }
+}
+</style>
+
+<div id="page-content" style="display:none;">
+
+{# ── Top 10 — 3 kolom ── #}
+<div class="row g-3 mb-4">
+
+  {# Top 10 Task UAT #}
+  <div class="col-md-4">
+    <div class="card-box" style="height:100%;">
+      <div style="display:flex; align-items:center; gap:8px; margin-bottom:14px;">
+        <div style="width:30px; height:30px; background:#DBEAFE; border-radius:8px;
+                    display:flex; align-items:center; justify-content:center;">
+          <i class="ti ti-list-check" style="font-size:16px; color:#2563EB;"></i>
+        </div>
+        <div class="card-box-title" style="margin-bottom:0;">Top 10 Task UAT</div>
+      </div>
+      <table class="jira-table">
+        <thead>
+          <tr>
+            <th style="width:30px;">#</th>
+            <th>Nama</th>
+            <th style="text-align:right;">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for m in top10_task %}
+          <tr>
+            <td>
+              {% if m.rank == 1 %}
+                <span class="rank-badge rank-1">{{ m.rank }}</span>
+              {% elif m.rank == 2 %}
+                <span class="rank-badge rank-2">{{ m.rank }}</span>
+              {% elif m.rank == 3 %}
+                <span class="rank-badge rank-3">{{ m.rank }}</span>
+              {% else %}
+                <span class="rank-badge rank-other">{{ m.rank }}</span>
+              {% endif %}
+            </td>
+            <td>
+              {% set parts = m.name.split() %}
+              {% set initials = parts[0][0] | upper + (parts[-1][0] | upper if parts | length > 1 else '') %}
+              <div style="display:flex; align-items:center; gap:8px;">
+                <div style="width:26px; height:26px; border-radius:50%; background:#DBEAFE; color:#1D4ED8;
+                            display:flex; align-items:center; justify-content:center;
+                            font-size:9px; font-weight:700; flex-shrink:0;">
+                  {{ initials }}
+                </div>
+                <span style="font-size:12px; color:#111827;">{{ m.name }}</span>
+              </div>
+            </td>
+            <td style="text-align:right;">
+              <span style="font-size:13px; font-weight:600; color:#2563EB;">{{ m.total }}</span>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {# Top 10 Bugs UAT #}
+  <div class="col-md-4">
+    <div class="card-box" style="height:100%;">
+      <div style="display:flex; align-items:center; gap:8px; margin-bottom:14px;">
+        <div style="width:30px; height:30px; background:#FEE2E2; border-radius:8px;
+                    display:flex; align-items:center; justify-content:center;">
+          <i class="ti ti-bug" style="font-size:16px; color:#DC2626;"></i>
+        </div>
+        <div class="card-box-title" style="margin-bottom:0;">Top 10 Bugs UAT</div>
+      </div>
+      <table class="jira-table">
+        <thead>
+          <tr>
+            <th style="width:30px;">#</th>
+            <th>Nama</th>
+            <th style="text-align:right;">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for m in top10_bugs_uat %}
+          <tr>
+            <td>
+              {% if m.rank == 1 %}
+                <span class="rank-badge rank-1">{{ m.rank }}</span>
+              {% elif m.rank == 2 %}
+                <span class="rank-badge rank-2">{{ m.rank }}</span>
+              {% elif m.rank == 3 %}
+                <span class="rank-badge rank-3">{{ m.rank }}</span>
+              {% else %}
+                <span class="rank-badge rank-other">{{ m.rank }}</span>
+              {% endif %}
+            </td>
+            <td>
+              {% set parts = m.name.split() %}
+              {% set initials = parts[0][0] | upper + (parts[-1][0] | upper if parts | length > 1 else '') %}
+              <div style="display:flex; align-items:center; gap:8px;">
+                <div style="width:26px; height:26px; border-radius:50%; background:#FEE2E2; color:#DC2626;
+                            display:flex; align-items:center; justify-content:center;
+                            font-size:9px; font-weight:700; flex-shrink:0;">
+                  {{ initials }}
+                </div>
+                <span style="font-size:12px; color:#111827;">{{ m.name }}</span>
+              </div>
+            </td>
+            <td style="text-align:right;">
+              <span style="font-size:13px; font-weight:600; color:#DC2626;">{{ m.total }}</span>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {# Top 10 Bugs MTC #}
+  <div class="col-md-4">
+    <div class="card-box" style="height:100%;">
+      <div style="display:flex; align-items:center; gap:8px; margin-bottom:14px;">
+        <div style="width:30px; height:30px; background:#FCE7F3; border-radius:8px;
+                    display:flex; align-items:center; justify-content:center;">
+          <i class="ti ti-bug" style="font-size:16px; color:#BE185D;"></i>
+        </div>
+        <div class="card-box-title" style="margin-bottom:0;">Top 10 Bugs MTC</div>
+      </div>
+      <table class="jira-table">
+        <thead>
+          <tr>
+            <th style="width:30px;">#</th>
+            <th>Nama</th>
+            <th style="text-align:right;">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for m in top10_bugs_mtc %}
+          <tr>
+            <td>
+              {% if m.rank == 1 %}
+                <span class="rank-badge rank-1">{{ m.rank }}</span>
+              {% elif m.rank == 2 %}
+                <span class="rank-badge rank-2">{{ m.rank }}</span>
+              {% elif m.rank == 3 %}
+                <span class="rank-badge rank-3">{{ m.rank }}</span>
+              {% else %}
+                <span class="rank-badge rank-other">{{ m.rank }}</span>
+              {% endif %}
+            </td>
+            <td>
+              {% set parts = m.name.split() %}
+              {% set initials = parts[0][0] | upper + (parts[-1][0] | upper if parts | length > 1 else '') %}
+              <div style="display:flex; align-items:center; gap:8px;">
+                <div style="width:26px; height:26px; border-radius:50%; background:#FCE7F3; color:#BE185D;
+                            display:flex; align-items:center; justify-content:center;
+                            font-size:9px; font-weight:700; flex-shrink:0;">
+                  {{ initials }}
+                </div>
+                <span style="font-size:12px; color:#111827;">{{ m.name }}</span>
+              </div>
+            </td>
+            <td style="text-align:right;">
+              <span style="font-size:13px; font-weight:600; color:#BE185D;">{{ m.total }}</span>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+{# ── Detail Keseluruhan Tim ── #}
+<div class="card-box">
+  <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
+    <div style="display:flex; align-items:center; gap:8px;">
+      <div style="width:30px; height:30px; background:#F3F4F6; border-radius:8px;
+                  display:flex; align-items:center; justify-content:center;">
+        <i class="ti ti-users" style="font-size:16px; color:#374151;"></i>
+      </div>
+      <div class="card-box-title" style="margin-bottom:0;">Detail Keseluruhan Tim</div>
+    </div>
+    <span style="font-size:12px; color:#9CA3AF;">{{ team | length }} anggota</span>
+  </div>
+
+  <table class="jira-table" id="teamTable">
+    <thead>
+      <tr>
+        <th onclick="sortTeam(0)" style="cursor:pointer; user-select:none; width:30px;">
+          # <i class="ti ti-selector" style="font-size:10px;"></i>
+        </th>
+        <th onclick="sortTeam(1)" style="cursor:pointer; user-select:none;">
+          Nama <i class="ti ti-selector" style="font-size:10px;"></i>
+        </th>
+        <th onclick="sortTeam(2)" style="cursor:pointer; user-select:none;">
+          Leader <i class="ti ti-selector" style="font-size:10px;"></i>
+        </th>
+        <th onclick="sortTeam(3)" style="cursor:pointer; user-select:none;">
+          Manager <i class="ti ti-selector" style="font-size:10px;"></i>
+        </th>
+        <th onclick="sortTeam(4)" style="cursor:pointer; user-select:none; text-align:center;">
+          Task UAT <i class="ti ti-selector" style="font-size:10px;"></i>
+        </th>
+        <th onclick="sortTeam(5)" style="cursor:pointer; user-select:none; text-align:center;">
+          Done <i class="ti ti-selector" style="font-size:10px;"></i>
+        </th>
+        <th onclick="sortTeam(6)" style="cursor:pointer; user-select:none; text-align:center;">
+          Done % <i class="ti ti-selector" style="font-size:10px;"></i>
+        </th>
+        <th onclick="sortTeam(7)" style="cursor:pointer; user-select:none; text-align:center;">
+          Bugs UAT <i class="ti ti-selector" style="font-size:10px;"></i>
+        </th>
+        <th onclick="sortTeam(8)" style="cursor:pointer; user-select:none; text-align:center;">
+          Bugs MTC <i class="ti ti-selector" style="font-size:10px;"></i>
+        </th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for m in team %}
+      <tr>
+        <td style="color:#9CA3AF; font-size:12px;">{{ loop.index }}</td>
+        <td>
+          {% set parts = m.name.split() %}
+          {% set initials = parts[0][0] | upper + (parts[-1][0] | upper if parts | length > 1 else '') %}
+          <div style="display:flex; align-items:center; gap:8px;">
+            <div style="width:28px; height:28px; border-radius:50%; background:#E0E7FF; color:#3730A3;
+                        display:flex; align-items:center; justify-content:center;
+                        font-size:10px; font-weight:700; flex-shrink:0;">
+              {{ initials }}
+            </div>
+            <span style="font-size:13px; font-weight:500; color:#111827;">{{ m.name }}</span>
+          </div>
+        </td>
+        <td style="font-size:12px; color:#374151;">{{ m.leader }}</td>
+        <td style="font-size:12px; color:#374151;">{{ m.manager }}</td>
+        <td style="text-align:center;">
+          <span style="font-size:13px; font-weight:500; color:#2563EB;">{{ m.task_uat }}</span>
+        </td>
+        <td style="text-align:center;">
+          <span style="font-size:13px; font-weight:500; color:#166534;">{{ m.done }}</span>
+        </td>
+        <td style="min-width:90px;">
+          <div style="display:flex; align-items:center; gap:6px;">
+            <div class="progress-thin" style="flex:1;">
+              <div class="progress-fill" style="width:{{ m.done_pct }}%; background:#16A34A;"></div>
+            </div>
+            <span style="font-size:11px; font-weight:600; color:#166534; white-space:nowrap;">
+              {{ m.done_pct }}%
+            </span>
+          </div>
+        </td>
+        <td style="text-align:center;">
+          <span style="font-size:13px; font-weight:500; color:#DC2626;">{{ m.bugs_uat }}</span>
+        </td>
+        <td style="text-align:center;">
+          <span style="font-size:13px; font-weight:500; color:#BE185D;">{{ m.bugs_mtc }}</span>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {# Pagination #}
+  <div style="display:flex; align-items:center; justify-content:space-between; margin-top:14px;">
+    <span id="teamPaginationInfo" style="font-size:12px; color:#6B7280;"></span>
+    <div style="display:flex; gap:4px;" id="teamPaginationButtons"></div>
+  </div>
+
+</div>
+
+</div> {# end page-content #}
+
+{% endblock %}
+
+{% block extra_script %}
+<script>
+  document.getElementById('loading-overlay').style.display = 'none';
+  document.getElementById('page-content').style.display   = 'block';
+
+  // ── Sort team table ──
+  let teamSortDir = {};
+  function sortTeam(colIdx) {
+    const tbody = document.querySelector('#teamTable tbody');
+    const rows  = Array.from(tbody.querySelectorAll('tr'));
+
+    teamSortDir[colIdx] = !teamSortDir[colIdx];
+    const asc = teamSortDir[colIdx];
+
+    rows.sort((a, b) => {
+      const aVal = a.querySelectorAll('td')[colIdx]?.innerText.trim() || '';
+      const bVal = b.querySelectorAll('td')[colIdx]?.innerText.trim() || '';
+      const aNum = parseFloat(aVal.replace('%', ''));
+      const bNum = parseFloat(bVal.replace('%', ''));
+      if (!isNaN(aNum) && !isNaN(bNum)) return asc ? aNum - bNum : bNum - aNum;
+      return asc ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+    });
+
+    rows.forEach((row, i) => {
+      row.querySelector('td').innerText = i + 1;
+      tbody.appendChild(row);
+    });
+
+    // Update icon header
+    document.querySelectorAll('#teamTable th').forEach((th, i) => {
+      const icon = th.querySelector('i');
+      if (!icon) return;
+      icon.className = i === colIdx
+        ? (asc ? 'ti ti-sort-ascending' : 'ti ti-sort-descending')
+        : 'ti ti-selector';
+      icon.style.fontSize = '10px';
+    });
+
+    // Re-init pagination setelah sort
+    teamRows = Array.from(tbody.querySelectorAll('tr'));
+    renderTeamPage(1);
+  }
+
+  // ── Pagination team ──
+  const ROWS_PER_PAGE = 10;
+  let teamRows        = [];
+  let teamCurrentPage = 1;
+
+  function initTeamPagination() {
+    const tbody = document.querySelector('#teamTable tbody');
+    if (!tbody) return;
+    teamRows = Array.from(tbody.querySelectorAll('tr'));
+    renderTeamPage(1);
+  }
+
+  function renderTeamPage(page) {
+    teamCurrentPage = page;
+    const total = teamRows.length;
+    const pages = Math.ceil(total / ROWS_PER_PAGE);
+    const start = (page - 1) * ROWS_PER_PAGE;
+    const end   = Math.min(start + ROWS_PER_PAGE, total);
+
+    teamRows.forEach((row, i) => {
+      row.style.display = (i >= start && i < end) ? '' : 'none';
+    });
+
+    document.getElementById('teamPaginationInfo').textContent =
+      `Menampilkan ${start + 1}–${end} dari ${total} anggota`;
+
+    const btnContainer = document.getElementById('teamPaginationButtons');
+    btnContainer.innerHTML = '';
+
+    const prev = document.createElement('button');
+    prev.textContent = '←';
+    prev.disabled    = page === 1;
+    prev.onclick     = () => renderTeamPage(page - 1);
+    prev.style.cssText = 'padding:4px 10px; border:1px solid #E5E7EB; border-radius:6px; background:white; font-size:12px; cursor:pointer; color:#374151;';
+    btnContainer.appendChild(prev);
+
+    for (let i = 1; i <= pages; i++) {
+      if (pages > 7 && i > 2 && i < pages - 1 && Math.abs(i - page) > 1) {
+        if (i === 3 || i === pages - 2) {
+          const dots = document.createElement('span');
+          dots.textContent = '...';
+          dots.style.cssText = 'padding:4px 6px; font-size:12px; color:#9CA3AF;';
+          btnContainer.appendChild(dots);
+        }
+        continue;
+      }
+      const btn = document.createElement('button');
+      btn.textContent = i;
+      btn.onclick     = () => renderTeamPage(i);
+      btn.style.cssText = `padding:4px 10px; border:1px solid ${i === page ? '#2563EB' : '#E5E7EB'}; border-radius:6px; background:${i === page ? '#2563EB' : 'white'}; color:${i === page ? 'white' : '#374151'}; font-size:12px; cursor:pointer;`;
+      btnContainer.appendChild(btn);
+    }
+
+    const next = document.createElement('button');
+    next.textContent = '→';
+    next.disabled    = page === pages;
+    next.onclick     = () => renderTeamPage(page + 1);
+    next.style.cssText = 'padding:4px 10px; border:1px solid #E5E7EB; border-radius:6px; background:white; font-size:12px; cursor:pointer; color:#374151;';
+    btnContainer.appendChild(next);
+  }
+
+  initTeamPagination();
+</script>
+{% endblock %}

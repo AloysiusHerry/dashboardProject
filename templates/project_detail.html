@@ -1,0 +1,208 @@
+{% extends "base.html" %}
+{% block title %}Detail {{ detail.name }}{% endblock %}
+{% block page_title %}{{ 'Project' if mode == 'project' else 'MTC' }} Detail{% endblock %}
+
+{% block content %}
+
+<div id="loading-overlay" style="position:fixed; inset:0; z-index:9999; background:rgba(255,255,255,0.9);
+     display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px;">
+  <div style="display:flex; align-items:center; gap:10px;">
+    <div style="width:36px; height:36px; background:#DBEAFE; border-radius:9px;
+                display:flex; align-items:center; justify-content:center;">
+      <i class="ti {{ 'ti-folder' if mode == 'project' else 'ti-server' }}"
+         style="font-size:20px; color:#2563EB;"></i>
+    </div>
+    <div>
+      <div style="font-size:14px; font-weight:600; color:#111827;">Memuat detail...</div>
+      <div style="font-size:11px; color:#9CA3AF;">Membaca dari database</div>
+    </div>
+  </div>
+  <div style="width:280px; height:4px; background:#E5E7EB; border-radius:2px; overflow:hidden;">
+    <div style="height:100%; background:#2563EB; border-radius:2px; animation:loadbar 1.5s ease-in-out infinite;"></div>
+  </div>
+</div>
+
+<style>
+@keyframes loadbar {
+  0%   { width:0%;  margin-left:0%; }
+  50%  { width:60%; margin-left:20%; }
+  100% { width:0%;  margin-left:100%; }
+}
+</style>
+
+<div id="page-content" style="display:none;">
+
+{% set group_colors = {
+  'UAT':        '#2563EB',
+  'UAT_BUGS':   '#DC2626',
+  'MTC':        '#7C3AED',
+  'MTC_BUGS':   '#BE185D',
+  'Support':    '#D97706',
+  'OPR':        '#0891B2',
+  'Daily Task': '#16A34A',
+  'Lainnya':    '#6B7280'
+} %}
+{% set group_bg = {
+  'UAT':        '#DBEAFE',
+  'UAT_BUGS':   '#FEE2E2',
+  'MTC':        '#EDE9FE',
+  'MTC_BUGS':   '#FCE7F3',
+  'Support':    '#FEF3C7',
+  'OPR':        '#CFFAFE',
+  'Daily Task': '#DCFCE7',
+  'Lainnya':    '#F3F4F6'
+} %}
+
+{# ── Back + header ── #}
+<div style="display:flex; align-items:center; gap:12px; margin-bottom:20px;">
+  <a href="{{ url_for('project_dashboard') }}?tab={{ mode }}"
+     style="width:32px; height:32px; border:1px solid #E5E7EB; border-radius:8px; background:white;
+            display:flex; align-items:center; justify-content:center; color:#6B7280; text-decoration:none;">
+    <i class="ti ti-arrow-left" style="font-size:16px;"></i>
+  </a>
+  <div style="display:flex; align-items:center; gap:8px;">
+    <div style="width:36px; height:36px; border-radius:9px; flex-shrink:0;
+                display:flex; align-items:center; justify-content:center;
+                background:{{ '#EFF6FF' if mode == 'project' else '#F5F3FF' }};">
+      <i class="ti {{ 'ti-folder-filled' if mode == 'project' else 'ti-server' }}"
+         style="font-size:18px; color:{{ '#2563EB' if mode == 'project' else '#7C3AED' }};"></i>
+    </div>
+    <div>
+      <div style="font-size:15px; font-weight:600; color:#111827;">{{ detail.name }}</div>
+      <div style="font-size:12px; color:#6B7280;">{{ detail.total }} total issues</div>
+    </div>
+  </div>
+</div>
+
+{# ── Stat cards ── #}
+<div class="row g-3 mb-4">
+  <div class="col-md-3">
+    <div class="stat-card">
+      <div class="stat-label">Total Task</div>
+      <div class="stat-value">{{ detail.total }}</div>
+      <span class="stat-badge badge-neutral"><i class="ti ti-list" style="font-size:12px"></i> Semua status</span>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="stat-card">
+      <div class="stat-label">Done</div>
+      <div class="stat-value" style="color:#166534">{{ detail.done }}</div>
+      <span class="stat-badge badge-up"><i class="ti ti-check" style="font-size:12px"></i> Selesai</span>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="stat-card">
+      <div class="stat-label">Belum Done</div>
+      <div class="stat-value" style="color:#991B1B">{{ detail.total - detail.done }}</div>
+      <span class="stat-badge badge-down"><i class="ti ti-clock" style="font-size:12px"></i> Masih berjalan</span>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="stat-card">
+      <div class="stat-label">Progress</div>
+      <div class="stat-value" style="color:#065F46">{{ detail.done_pct }}%</div>
+      <div class="progress-thin" style="margin-top:8px;">
+        <div class="progress-fill" style="width:{{ detail.done_pct }}%; background:#16A34A;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ── Breakdown + Assignee ── #}
+<div class="row g-3">
+
+  {# Kiri: breakdown per group #}
+  <div class="col-md-7">
+    <div class="card-box">
+      <div class="card-box-title">Breakdown per Kategori</div>
+
+      {% for group_name in ['UAT', 'UAT_BUGS', 'MTC', 'MTC_BUGS', 'Support', 'OPR', 'Daily Task', 'Lainnya'] %}
+      {% if detail.groups.get(group_name) %}
+      <div style="margin-bottom:18px;">
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+          <span style="display:inline-block; width:10px; height:10px; border-radius:50%;
+                       background:{{ group_colors[group_name] }};"></span>
+          <span style="font-size:12px; font-weight:600; color:#374151;">{{ group_name }}</span>
+          <span style="font-size:11px; color:#9CA3AF;">
+            ({{ detail.groups[group_name].values() | sum }} issues)
+          </span>
+        </div>
+
+        {% set max_count = detail.groups[group_name].values() | max %}
+        {% for status, count in detail.groups[group_name].items() | sort(attribute='1', reverse=True) %}
+        {% set pct = ((count / max_count) * 100) | int %}
+        <div class="bar-row" style="margin-bottom:6px;">
+          <span class="bar-label-text" style="width:180px; font-size:11px; text-align:right;">
+            {{ status[:28] }}{% if status | length > 28 %}…{% endif %}
+          </span>
+          <div class="bar-track">
+            <div class="bar-fill" style="width:{{ pct }}%; background:{{ group_colors[group_name] }};"></div>
+          </div>
+          <span class="bar-count">{{ count }}</span>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+      {% endfor %}
+
+    </div>
+  </div>
+
+  {# Kanan: assignee list #}
+  <div class="col-md-5">
+    <div class="card-box" style="height:100%;">
+      <div class="card-box-title">Assignee ({{ detail.assignees | length }})</div>
+
+      <div style="display:flex; flex-direction:column; gap:8px; max-height:520px; overflow-y:auto;">
+        {% for a in detail.assignees %}
+        {% set parts = a.name.split() %}
+        {% set initials = parts[0][0] | upper + (parts[-1][0] | upper if parts | length > 1 else '') %}
+        <div style="display:flex; align-items:center; gap:10px; padding:8px 10px;
+                    background:#F9FAFB; border-radius:8px;">
+          <div style="width:34px; height:34px; border-radius:50%; background:#E0E7FF; color:#3730A3;
+                      display:flex; align-items:center; justify-content:center;
+                      font-size:11px; font-weight:700; flex-shrink:0;">
+            {{ initials }}
+          </div>
+          <div style="flex:1; min-width:0;">
+            <div style="font-size:13px; font-weight:500; color:#111827;
+                        white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+              {{ a.name }}
+            </div>
+            <div style="display:flex; align-items:center; gap:6px; margin-top:3px;">
+              <div class="progress-thin" style="flex:1;">
+                <div class="progress-fill" style="width:{{ a.done_pct }}%; background:#16A34A;"></div>
+              </div>
+              <span style="font-size:10px; color:#6B7280; white-space:nowrap;">
+                {{ a.done }}/{{ a.total }}
+              </span>
+            </div>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:2px; align-items:flex-end;">
+            {% for gname, cnt in a.groups.items() %}
+            <span style="font-size:10px; padding:1px 6px; border-radius:20px;
+                         background:{{ group_bg.get(gname, '#F3F4F6') }};
+                         color:{{ group_colors.get(gname, '#6B7280') }};">
+              {{ gname }} {{ cnt }}
+            </span>
+            {% endfor %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+</div> {# end page-content #}
+
+{% endblock %}
+
+{% block extra_script %}
+<script>
+  document.getElementById('loading-overlay').style.display = 'none';
+  document.getElementById('page-content').style.display   = 'block';
+</script>
+{% endblock %}

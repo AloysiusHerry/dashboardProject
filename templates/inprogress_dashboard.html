@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+{% block title %}In Progress Dashboard{% endblock %}
+{% block page_title %}Task In Progress > 1{% endblock %}
+
+{% block content %}
+
+<div id="loading-overlay" style="position:fixed; inset:0; z-index:9999; background:rgba(255,255,255,0.9);
+     display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px;">
+  <div style="display:flex; align-items:center; gap:10px;">
+    <div style="width:36px; height:36px; background:#DBEAFE; border-radius:9px;
+                display:flex; align-items:center; justify-content:center;">
+      <i class="ti ti-clock-pause" style="font-size:20px; color:#2563EB;"></i>
+    </div>
+    <div>
+      <div style="font-size:14px; font-weight:600; color:#111827;">Memuat data in progress...</div>
+      <div style="font-size:11px; color:#9CA3AF;">Membaca dari database</div>
+    </div>
+  </div>
+  <div style="width:280px; height:4px; background:#E5E7EB; border-radius:2px; overflow:hidden;">
+    <div style="height:100%; background:#2563EB; border-radius:2px; animation:loadbar 1.5s ease-in-out infinite;"></div>
+  </div>
+</div>
+
+<style>
+@keyframes loadbar {
+  0%   { width:0%;  margin-left:0%; }
+  50%  { width:60%; margin-left:20%; }
+  100% { width:0%;  margin-left:100%; }
+}
+.tab-btn {
+  padding: 7px 18px; border-radius: 8px; font-size: 13px;
+  font-weight: 500; text-decoration: none; cursor: pointer;
+  border: none; transition: all 0.15s;
+}
+.tab-btn.active { background: white; color: #111827; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+.tab-btn.inactive { background: transparent; color: #6B7280; }
+.section-content { display: none; }
+.section-content.active { display: block; }
+</style>
+
+<div id="page-content" style="display:none;">
+
+{% set group_colors = {
+  'UAT':        '#2563EB',
+  'Support':    '#D97706',
+  'MTC':        '#7C3AED',
+  'Daily Task': '#16A34A',
+} %}
+{% set group_bg = {
+  'UAT':        '#DBEAFE',
+  'Support':    '#FEF3C7',
+  'MTC':        '#EDE9FE',
+  'Daily Task': '#DCFCE7',
+} %}
+{% set group_icons = {
+  'UAT':        'ti-list-check',
+  'Support':    'ti-headset',
+  'MTC':        'ti-server',
+  'Daily Task': 'ti-calendar-check',
+} %}
+
+{# ── Stat cards ── #}
+<div class="row g-3 mb-4">
+  {% for group in ['UAT', 'Support', 'MTC', 'Daily Task'] %}
+  <div class="col-md-3">
+    <div class="stat-card">
+      <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+        <div style="width:28px; height:28px; border-radius:7px;
+                    background:{{ group_bg[group] }};
+                    display:flex; align-items:center; justify-content:center;">
+          <i class="ti {{ group_icons[group] }}" style="font-size:14px; color:{{ group_colors[group] }};"></i>
+        </div>
+        <div class="stat-label" style="margin-bottom:0;">{{ group }}</div>
+      </div>
+      <div class="stat-value" style="color:{{ group_colors[group] }};">
+        {{ summary[group].pic_count }}
+      </div>
+      <span class="stat-badge badge-down">
+        <i class="ti ti-users" style="font-size:11px;"></i>
+        {{ summary[group].pic_count }} PIC · {{ summary[group].task_count }} task
+      </span>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+{# ── Tab toggle ── #}
+<div style="display:flex; gap:4px; background:#F3F4F6; padding:4px;
+            border-radius:10px; margin-bottom:20px; width:fit-content;">
+  {% for group in ['UAT', 'Support', 'MTC', 'Daily Task'] %}
+  <button class="tab-btn {{ 'active' if loop.first else 'inactive' }}"
+          onclick="switchTab('{{ group }}')" id="tab-btn-{{ group | replace(' ', '_') }}">
+    <i class="ti {{ group_icons[group] }}" style="font-size:13px;"></i>
+    {{ group }}
+    {% if summary[group].pic_count > 0 %}
+    <span style="background:{{ group_colors[group] }}; color:white; font-size:10px;
+                 font-weight:600; padding:1px 6px; border-radius:20px; margin-left:4px;">
+      {{ summary[group].pic_count }}
+    </span>
+    {% endif %}
+  </button>
+  {% endfor %}
+</div>
+
+{# ── Section per group ── #}
+{% for group in ['UAT', 'Support', 'MTC', 'Daily Task'] %}
+<div class="section-content {{ 'active' if loop.first else '' }}"
+     id="section-{{ group | replace(' ', '_') }}">
+
+  {% set items = all_data[group] %}
+
+  {% if items %}
+  <div class="row g-3">
+    {% for pic in items %}
+    <div class="col-md-6">
+      <div class="card-box">
+
+        {# Header PIC #}
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
+          <div style="display:flex; align-items:center; gap:10px;">
+            {% set parts = pic.name.split() %}
+            {% set initials = parts[0][0] | upper + (parts[-1][0] | upper if parts | length > 1 else '') %}
+            <div style="width:36px; height:36px; border-radius:50%;
+                        background:{{ group_bg[group] }}; color:{{ group_colors[group] }};
+                        display:flex; align-items:center; justify-content:center;
+                        font-size:12px; font-weight:700; flex-shrink:0;">
+              {{ initials }}
+            </div>
+            <div>
+              <div style="font-size:13px; font-weight:600; color:#111827;">{{ pic.name }}</div>
+              <div style="font-size:11px; color:#6B7280;">{{ pic.total }} task in progress</div>
+            </div>
+          </div>
+          <span style="background:{{ group_bg[group] }}; color:{{ group_colors[group] }};
+                       font-size:12px; font-weight:600; padding:3px 10px; border-radius:20px;">
+            {{ pic.total }} task
+          </span>
+        </div>
+
+        {# Task list #}
+        <div style="display:flex; flex-direction:column; gap:6px;">
+          {% for task in pic.tasks %}
+          <div style="display:flex; align-items:flex-start; gap:8px; padding:8px 10px;
+                      background:#F9FAFB; border-radius:8px; border-left:3px solid {{ group_colors[group] }};">
+            <a href="{{ jira_url }}/browse/{{ task.key }}" target="_blank"
+               style="font-size:11px; font-weight:600; color:{{ group_colors[group] }};
+                      text-decoration:none; white-space:nowrap; flex-shrink:0;">
+              {{ task.key }}
+            </a>
+            <span style="font-size:12px; color:#374151; line-height:1.4;">
+              {{ task.summary[:70] }}{% if task.summary | length > 70 %}…{% endif %}
+            </span>
+          </div>
+          {% endfor %}
+        </div>
+
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  {% else %}
+  <div style="text-align:center; padding:60px 20px; color:#6B7280;">
+    <i class="ti ti-circle-check" style="font-size:40px; display:block; margin-bottom:10px; color:#16A34A;"></i>
+    <div style="font-size:14px; font-weight:500; color:#166534;">Tidak ada PIC dengan task > 1</div>
+    <div style="font-size:12px; margin-top:4px;">Semua PIC hanya mengerjakan 1 task</div>
+  </div>
+  {% endif %}
+
+</div>
+{% endfor %}
+
+</div> {# end page-content #}
+
+{% endblock %}
+
+{% block extra_script %}
+<script>
+  document.getElementById('loading-overlay').style.display = 'none';
+  document.getElementById('page-content').style.display   = 'block';
+
+  function switchTab(group) {
+    const id = group.replace(' ', '_');
+
+    // Hide semua section
+    document.querySelectorAll('.section-content').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => {
+      b.classList.remove('active');
+      b.classList.add('inactive');
+    });
+
+    // Show yang dipilih
+    document.getElementById('section-' + id).classList.add('active');
+    document.getElementById('tab-btn-' + id).classList.remove('inactive');
+    document.getElementById('tab-btn-' + id).classList.add('active');
+  }
+</script>
+{% endblock %}

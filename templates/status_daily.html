@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+{% block title %}Status Daily{% endblock %}
+{% block page_title %}Monitoring Status Daily{% endblock %}
+
+{% block content %}
+
+{# ── Stat cards row ── #}
+<div class="row g-3 mb-4">
+  <div class="col-md-3">
+    <div class="stat-card">
+      <div class="stat-label">Total List Tim</div>
+      <div class="stat-value" style="color:#1D4ED8">{{ list_names | length }}</div>
+      <span class="stat-badge badge-neutral"><i class="ti ti-users" style="font-size:12px"></i> Anggota terdaftar</span>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="stat-card">
+      <div class="stat-label">Tidak Ada di Jira</div>
+      <div class="stat-value" style="color:#991B1B">{{ not_in_jira | length }}</div>
+      <span class="stat-badge badge-down"><i class="ti ti-user-x" style="font-size:12px"></i> Perlu dicek</span>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="stat-card">
+      <div class="stat-label">Tidak Ada di List</div>
+      <div class="stat-value" style="color:#065F46">{{ not_in_list | length }}</div>
+      <span class="stat-badge badge-up"><i class="ti ti-user-plus" style="font-size:12px"></i> Belum didaftarkan</span>
+    </div>
+  </div>
+</div>
+
+{# ── Assignee comparison cards ── #}
+<div class="row g-3 mb-4">
+
+  {# Kiri: di list, tidak ada di Jira #}
+  <div class="col-md-6">
+    <div class="card-box" style="height:100%">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <div style="width:32px; height:32px; background:#FEE2E2; border-radius:8px; display:flex; align-items:center; justify-content:center;">
+            <i class="ti ti-user-x" style="font-size:17px; color:#991B1B;"></i>
+          </div>
+          <div>
+            <div class="card-box-title" style="margin-bottom:0;">Belum inprogress Task di JIRA</div>
+            <div style="font-size:11px; color:#6B7280;">Silahkan diinfokan ke Timnya</div>
+          </div>
+        </div>
+        <span style="background:#FEE2E2; color:#991B1B; font-size:11px; font-weight:600; padding:3px 10px; border-radius:20px;">
+          {{ not_in_jira | length }} orang
+        </span>
+      </div>
+
+      {% if not_in_jira %}
+        <div style="display:flex; flex-direction:column; gap:6px;">
+          {% for name in not_in_jira %}
+          <div style="display:flex; align-items:center; gap:10px; padding:8px 12px; background:#FFF5F5; border:1px solid #FECACA; border-radius:8px;">
+            <div style="width:32px; height:32px; border-radius:50%; background:#FEE2E2; color:#991B1B; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; flex-shrink:0;">
+              {% set parts = name.split() %}
+              {{ parts[0][0] | upper }}{% if parts | length > 1 %}{{ parts[-1][0] | upper }}{% endif %}
+            </div>
+            <div style="flex:1; min-width:0;">
+              <div style="font-size:13px; font-weight:500; color:#7F1D1D; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ name }}</div>
+            </div>
+            <i class="ti ti-alert-circle" style="font-size:15px; color:#FCA5A5; flex-shrink:0;"></i>
+          </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div style="display:flex; align-items:center; gap:8px; padding:14px; background:#F0FDF4; border:1px solid #BBF7D0; border-radius:8px;">
+          <i class="ti ti-circle-check" style="font-size:18px; color:#166534;"></i>
+          <span style="font-size:13px; color:#166534; font-weight:500;">Semua anggota list aktif di Jira</span>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  {# Kanan: di Jira, tidak ada di list #}
+  <div class="col-md-6">
+    <div class="card-box" style="height:100%">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <div style="width:32px; height:32px; background:#DBEAFE; border-radius:8px; display:flex; align-items:center; justify-content:center;">
+            <i class="ti ti-user-plus" style="font-size:17px; color:#1D4ED8;"></i>
+          </div>
+          <div>
+            <div class="card-box-title" style="margin-bottom:0;">PIC Tidak ada di List Tim Staff</div>
+            <div style="font-size:11px; color:#6B7280;">Pertimbangkan untuk ditambahkan</div>
+          </div>
+        </div>
+        <span style="background:#DBEAFE; color:#1E40AF; font-size:11px; font-weight:600; padding:3px 10px; border-radius:20px;">
+          {{ not_in_list | length }} orang
+        </span>
+      </div>
+
+      {% if not_in_list %}
+        <div style="display:flex; flex-direction:column; gap:6px;">
+          {% for name in not_in_list %}
+          <div style="display:flex; align-items:center; gap:10px; padding:8px 12px; background:#EFF6FF; border:1px solid #BFDBFE; border-radius:8px;">
+            <div style="width:32px; height:32px; border-radius:50%; background:#DBEAFE; color:#1D4ED8; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; flex-shrink:0;">
+              {% set parts = name.split() %}
+              {{ parts[0][0] | upper }}{% if parts | length > 1 %}{{ parts[-1][0] | upper }}{% endif %}
+            </div>
+            <div style="flex:1; min-width:0;">
+              <div style="font-size:13px; font-weight:500; color:#1E3A8A; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ name }}</div>
+            </div>
+            <i class="ti ti-plus-circle" style="font-size:15px; color:#93C5FD; flex-shrink:0;"></i>
+          </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div style="display:flex; align-items:center; gap:8px; padding:14px; background:#F0FDF4; border:1px solid #BBF7D0; border-radius:8px;">
+          <i class="ti ti-circle-check" style="font-size:18px; color:#166534;"></i>
+          <span style="font-size:13px; color:#166534; font-weight:500;">Semua assignee Jira sudah ada di list</span>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+</div>
+
+{% endblock %}
